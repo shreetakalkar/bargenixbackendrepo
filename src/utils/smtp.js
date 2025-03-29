@@ -1,9 +1,14 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import path from "path";
+import { fileURLToPath } from "url";
 
-// Load environment variables from utils/.env
-dotenv.config({ path: path.resolve("utils/.env") });
+// Define __dirname manually for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from the root .env file
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 console.log("✅ SMTP Configuration Loaded:");
 console.log("SMTP Email:", process.env.SMTP_MAIL || "❌ NOT LOADED");
