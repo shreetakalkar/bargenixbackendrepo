@@ -10,9 +10,9 @@ const __dirname = path.dirname(__filename);
 // Load environment variables from the root .env file
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-console.log("✅ SMTP Configuration Loaded:");
-console.log("SMTP Email:", process.env.SMTP_MAIL || "❌ NOT LOADED");
-console.log("SMTP Host:", process.env.SMTP_HOST || "❌ NOT LOADED");
+// console.log("✅ SMTP Configuration Loaded:");
+// console.log("SMTP Email:", process.env.SMTP_MAIL || "❌ NOT LOADED");
+// console.log("SMTP Host:", process.env.SMTP_HOST || "❌ NOT LOADED");
 
 // Email sender function
 const sendEmail = async (options) => {

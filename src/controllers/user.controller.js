@@ -235,14 +235,15 @@ export const getCurrentUser = asyncHandler(async (req, res, next) => {
 });
 
 export const changeCurrentPassword = asyncHandler(async (req, res, next) => {
+    console.log("Received body:", req.body); // Debugging
+
     const { oldPassword, newPassword } = req.body;
 
     if (!oldPassword || !newPassword) {
         throw new ApiError(400, "Please provide both old and new password");
     }
 
-    const user = await User.findById(req.user._id)
-    
+    const user = await User.findById(req.user._id);
     const isPasswordMatched = await user.isPasswordCorrect(oldPassword);
 
     if (!isPasswordMatched) {
@@ -260,6 +261,7 @@ export const changeCurrentPassword = asyncHandler(async (req, res, next) => {
 
     sendToken(user, 200, res, "Password changed successfully");
 });
+
 
 export const updateUserDetails = asyncHandler(async (req, res, next) => {
     const { firstName, lastName, designation, linkedInUrl } = req.body;

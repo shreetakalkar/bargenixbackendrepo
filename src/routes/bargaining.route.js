@@ -31,7 +31,7 @@ router.route('/set-by-product')
 router.route('/set-min-price')
     .post(verifyJWT, setBargainingForSingleProduct);
 
-router.route('/set-min-price-bulk')  // Add this new route
+router.route('/set-min-price-bulk')  
     .post(verifyJWT, setBulkMinPrice);
 
 router.route('/delete/:productId')

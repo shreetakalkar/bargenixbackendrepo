@@ -1,10 +1,11 @@
-import mongoose from 'mongoose'
+import mongoose from 'mongoose';
 import { BARGAIN_BEHAVIOUR } from '../constants.js';
 
 const bargainingDetailsSchema = new mongoose.Schema(
   {
     productId: { 
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,  // Use ObjectId if it's linked to Product
+        ref: 'Product',
         required: true 
     },
     minPrice: { 
@@ -13,10 +14,18 @@ const bargainingDetailsSchema = new mongoose.Schema(
         min: 0 
     },
     category: {
-        type: String
+        type: String,
+        trim: true
     },
-    isActive:{
-        type:Boolean
+    isActive: {
+        type: Boolean,
+        default: true  // Defaulting to true so it's always defined
+    },
+    bargainBehaviour: {
+        type: String,
+        enum: BARGAIN_BEHAVIOUR,  // Restrict to predefined values
+        required: true,
+        default: "normal"
     },
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 
