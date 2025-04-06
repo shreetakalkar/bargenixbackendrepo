@@ -21,6 +21,8 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
+console.log(MONGO_URI);
+
 console.log("🔍 Loaded MongoDB URI:", MONGO_URI ? "✅ Found" : "❌ Not Found");
 
 // ✅ Improved MongoDB Connection

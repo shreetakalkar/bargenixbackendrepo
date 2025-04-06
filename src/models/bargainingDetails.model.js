@@ -4,10 +4,10 @@ import { BARGAIN_BEHAVIOUR } from '../constants.js';
 const bargainingDetailsSchema = new mongoose.Schema(
   {
     productId: { 
-        type: mongoose.Schema.Types.ObjectId,  // Use ObjectId if it's linked to Product
-        ref: 'Product',
+        type: String,  // Changed from ObjectId
         required: true 
     },
+    
     minPrice: { 
         type: Number, 
         required: true, 

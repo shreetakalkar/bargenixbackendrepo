@@ -103,17 +103,21 @@ export const getTotalOrders = asyncHandler(async (req, res, next) => {
 });
 export const getAllProducts = asyncHandler(async (req, res, next) => {
   try {
+    // 1. Authentication check
     if (!req.user?._id) {
       return next(new ApiError(401, "Authentication required"));
     }
 
+    // 2. Get Shopify credentials
     const shopify = await ShopifyDetails.findOne({ userId: req.user._id });
     if (!shopify) {
       return next(new ApiError(404, "Shopify credentials not found"));
     }
 
+    // 3. Prepare API URL
     const url = `https://${shopify.shopifyShopName}.myshopify.com/admin/api/${shopify.apiVersion}/products.json`;
 
+    // 4. Make API request
     const { data } = await axios.get(url, {
       headers: {
         "X-Shopify-Access-Token": shopify.accessToken,
@@ -122,15 +126,18 @@ export const getAllProducts = asyncHandler(async (req, res, next) => {
       timeout: 5000,
     });
 
+    // 5. Validate response
     if (!data.products) {
       return next(new ApiError(500, "Invalid response from Shopify API"));
     }
 
+    // 6. Format products data with category information
     const allProducts = data.products.map((product) => ({
       id: product.id,
       title: product.title,
       description: product.body_html || "No description available",
-      product_type: product.product_type || "Uncategorized",
+      category: product.product_type || "Uncategorized", // Explicit category field
+      product_type: product.product_type || "Uncategorized", // Maintain original for compatibility
       vendor: product.vendor || "Unknown",
       created_at: product.created_at,
       updated_at: product.updated_at,
@@ -153,8 +160,17 @@ export const getAllProducts = asyncHandler(async (req, res, next) => {
       })),
     }));
 
+    // 7. Extract unique categories for summary
+    const categories = [...new Set(data.products.map(p => p.product_type || "Uncategorized"))];
+
+    // 8. Return successful response with enhanced data
     return res.status(200).json(
-      new ApiResponse(200, { products: allProducts }, "Products retrieved successfully")
+      new ApiResponse(200, { 
+        products: allProducts,
+        count: allProducts.length,
+        availableCategories: categories, // Add available categories list
+        categoryCount: categories.length // Add count of categories
+      }, "Products retrieved successfully with category information")
     );
   } catch (error) {
     if (error.response?.status === 401) {
@@ -185,21 +201,23 @@ export const getAllProductsByCategory = asyncHandler(async (req, res, next) => {
         "X-Shopify-Access-Token": shopify.accessToken,
         "Content-Type": "application/json",
       },
-      timeout: 5000
+      timeout: 5000,
     });
 
     const collections = {};
 
     data.products.forEach((product) => {
       const productType = product.product_type || "Uncategorized";
-      
+
       if (!collections[productType]) {
         collections[productType] = [];
       }
 
       const variantsDetails = product.variants.map((variant) => ({
-        id: variant.id,
-        name: product.title,
+        product_id: product.id, // ✅ Include product ID
+        product_title: product.title,
+        product_type: productType, // ✅ Include product category
+        variant_id: variant.id,
         price: variant.price,
         inventory_quantity: variant.inventory_quantity || 0,
         created_at: variant.created_at,

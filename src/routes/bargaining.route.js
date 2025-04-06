@@ -2,28 +2,32 @@ import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
     setBargainingByCategory,
-    setBargainingByProduct,
+    // setBargainingByProduct,
     setBargainingToAllProducts,
-    deleteBargaining,
-    getBargainingDetails,
-    deactivateAllProducts,
-    deactivateByCategory,
-    setBulkMinPrice,  // Add this new import
-    sendProductData,
-    requestForBargain,
-    getBargainRequestsByShop,
-    markAsRead,
-    getBargainInfo,
-    setBargainingForSingleProduct
+    // deleteBargaining,
+    // getBargainingDetails,
+    // deactivateAllProducts,
+    // deactivateByCategory,
+    // setBulkMinPrice,  // Add this new import
+    // sendProductData,
+    // requestForBargain,
+    // getBargainRequestsByShop,
+    // markAsRead,
+    // getBargainInfo,
+    // setBargainingForSingleProduct
 } from "../controllers/bargaining.controller.js";
 
 const router = Router();
 
+// ✅ Bargaining by Category
 router.route('/set-by-category')
     .post(verifyJWT, setBargainingByCategory);
 
+// ✅ Bargaining for All Products
 router.route('/set-all-products')
     .post(verifyJWT, setBargainingToAllProducts);
+
+/* ❌ Other routes commented for now
 
 router.route('/set-by-product')
     .post(verifyJWT, setBargainingByProduct);
@@ -60,5 +64,7 @@ router.route('/get-bargain-request')
 
 router.route('/request-read/:id')
     .put(verifyJWT, markAsRead)
+
+*/
 
 export default router;
