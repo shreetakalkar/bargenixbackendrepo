@@ -9,7 +9,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import axios from "axios";
 
 // ---------------------------
-// Set Bargaining by Category
+// Set Bargaining by Category (Modified with isProductAll toggle)
 // ---------------------------
 export const setBargainingByCategory = asyncHandler(async (req, res, next) => {
   const {
@@ -19,20 +19,28 @@ export const setBargainingByCategory = asyncHandler(async (req, res, next) => {
     endRange,
     noOfProducts,
     bargainingBehaviour,
+    isProductAll // New toggle flag
   } = req.body;
 
   if (
     !category ||
     minPrice === undefined ||
-    startRange === undefined ||
-    endRange === undefined ||
-    noOfProducts === undefined ||
     !bargainingBehaviour
   ) {
     return next(
       new ApiError(
         400,
-        "Please provide category, minPrice (as %), startRange, endRange, noOfProducts and bargainingBehaviour"
+        "Please provide category, minPrice (as %), and bargainingBehaviour"
+      )
+    );
+  }
+
+  // Only validate range if isProductAll is false
+  if (!isProductAll && (startRange === undefined || endRange === undefined)) {
+    return next(
+      new ApiError(
+        400,
+        "Please provide startRange and endRange when isProductAll is false"
       )
     );
   }
@@ -54,10 +62,13 @@ export const setBargainingByCategory = asyncHandler(async (req, res, next) => {
     if ((product.product_type || "Uncategorized") === category) {
       for (const variant of product.variants) {
         const variantPrice = parseFloat(variant.price);
-        if (variantPrice >= startRange && variantPrice <= endRange) {
+        // Skip price range check if isProductAll is true
+        if (isProductAll || (variantPrice >= startRange && variantPrice <= endRange)) {
           filteredProducts.push({
             productId: variant.id.toString(),
             price: variantPrice,
+            productTitle: product.title,
+            variantTitle: variant.title,
           });
         }
       }
@@ -68,18 +79,21 @@ export const setBargainingByCategory = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         404,
-        `No products found in category: ${category} within the given price range`
+        `No products found in category: ${category}` + 
+        (isProductAll ? "" : " within the given price range")
       )
     );
   }
 
-  filteredProducts = filteredProducts.slice(0, noOfProducts);
+  // Apply noOfProducts limit only if isProductAll is false
+  if (!isProductAll && noOfProducts) {
+    filteredProducts = filteredProducts.slice(0, noOfProducts);
+  }
 
   const updatedBargainingDetails = [];
 
   for (const product of filteredProducts) {
-    const calculatedMinPrice =
-      product.price + (product.price * minPrice) / 100;
+    const calculatedMinPrice = product.price - (product.price * minPrice) / 100;
 
     const existing = await BargainingDetails.findOne({
       productId: product.productId,
@@ -100,6 +114,8 @@ export const setBargainingByCategory = asyncHandler(async (req, res, next) => {
         bargainingBehaviour,
         isActive: true,
         userId: req.user._id,
+        productTitle: product.productTitle,
+        variantTitle: product.variantTitle,
       });
       updatedBargainingDetails.push(newDetail);
     }
@@ -108,13 +124,14 @@ export const setBargainingByCategory = asyncHandler(async (req, res, next) => {
   res.status(201).json(
     new ApiResponse(201, {
       message: `Bargaining details set for ${updatedBargainingDetails.length} product(s) in category '${category}'`,
+      isProductAll,
       data: updatedBargainingDetails,
     })
   );
 });
 
 // ---------------------------
-// Set Bargaining for All Products
+// Set Bargaining for All Products (Modified with isProductAll toggle)
 // ---------------------------
 export const setBargainingToAllProducts = asyncHandler(async (req, res, next) => {
   const { 
@@ -122,12 +139,18 @@ export const setBargainingToAllProducts = asyncHandler(async (req, res, next) =>
     startRange, 
     endRange, 
     noOfProducts, 
-    behavior 
+    behavior,
+    isProductAll // New toggle flag
   } = req.body;
 
   // Validate input
-  if (minPricePercentage === undefined || startRange === undefined || endRange === undefined) {
-    return next(new ApiError(400, "Please provide minPricePercentage (as %), startRange, and endRange"));
+  if (minPricePercentage === undefined) {
+    return next(new ApiError(400, "Please provide minPricePercentage (as %)"));
+  }
+
+  // Only validate range if isProductAll is false
+  if (!isProductAll && (startRange === undefined || endRange === undefined)) {
+    return next(new ApiError(400, "Please provide startRange and endRange when isProductAll is false"));
   }
 
   const shopify = await ShopifyDetails.findOne({ userId: req.user._id });
@@ -142,31 +165,45 @@ export const setBargainingToAllProducts = asyncHandler(async (req, res, next) =>
   });
 
   let filteredProducts = [];
-  for (const product of data.products) {
-    for (const variant of product.variants) {
-      const variantPrice = parseFloat(variant.price);
-      if (variantPrice >= startRange && variantPrice <= endRange) {
-        filteredProducts.push({
-          ...variant,
-          category: product.product_type || "Uncategorized",
-          productTitle: product.title
-        });
+  
+  // If isProductAll is true, include all products without range filtering
+  if (isProductAll) {
+    filteredProducts = data.products.flatMap(product => 
+      product.variants.map(variant => ({
+        ...variant,
+        category: product.product_type || "Uncategorized",
+        productTitle: product.title
+      }))
+    );
+  } else {
+    // Original range filtering logic
+    for (const product of data.products) {
+      for (const variant of product.variants) {
+        const variantPrice = parseFloat(variant.price);
+        if (variantPrice >= startRange && variantPrice <= endRange) {
+          filteredProducts.push({
+            ...variant,
+            category: product.product_type || "Uncategorized",
+            productTitle: product.title
+          });
+        }
       }
     }
   }
 
   if (filteredProducts.length === 0) {
-    return next(new ApiError(404, "No products found within the given price range"));
+    return next(new ApiError(404, "No products found" + (isProductAll ? "" : " within the given price range")));
   }
 
-  if (noOfProducts) {
+  // Apply noOfProducts limit only if isProductAll is false
+  if (!isProductAll && noOfProducts) {
     filteredProducts = filteredProducts.slice(0, noOfProducts);
   }
 
   // Process products with percentage calculation
   const processedProducts = filteredProducts.map(product => {
     const originalPrice = parseFloat(product.price);
-    const calculatedMinPrice = originalPrice + (originalPrice * minPricePercentage / 100);
+    const calculatedMinPrice = originalPrice - (originalPrice * minPricePercentage / 100);
     
     return {
       ...product,
@@ -191,7 +228,8 @@ export const setBargainingToAllProducts = asyncHandler(async (req, res, next) =>
           category: product.category,
           isActive: true,
           behavior: behavior || "NORMAL",
-          userId: req.user._id
+          userId: req.user._id,
+          productTitle: product.productTitle,
         }
       },
       upsert: true
@@ -203,7 +241,8 @@ export const setBargainingToAllProducts = asyncHandler(async (req, res, next) =>
   res.status(201).json(
     new ApiResponse(201, { 
       message: `Bargaining rules applied to ${filteredProducts.length} products`,
-      calculationFormula: `minPrice = originalPrice + (originalPrice × ${minPricePercentage}%)`,
+      isProductAll,
+      calculationFormula: `minPrice = originalPrice - (originalPrice × ${minPricePercentage}%)`,
       sampleCalculations: processedProducts.slice(0, 3).map(p => ({
         productId: p.id,
         originalPrice: p.originalPrice,
